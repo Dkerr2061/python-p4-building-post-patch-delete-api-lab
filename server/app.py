@@ -20,15 +20,67 @@ def home():
 
 @app.route('/bakeries')
 def bakeries():
-    bakeries = [bakery.to_dict() for bakery in Bakery.query.all()]
-    return make_response(  bakeries,   200  )
+    
+        bakeries = [bakery.to_dict() for bakery in Bakery.query.all()]
+        return make_response(  bakeries,   200  )
+   
 
-@app.route('/bakeries/<int:id>')
+@app.route('/baked_goods', methods=['GET', 'POST'])
+def baked_goods():
+    baked_goods_all = BakedGood.query.all()
+
+    if baked_goods_all:
+        if request.method == 'GET':
+            baked_goods_list_dicts = [baked_good.to_dict(only=('id', 'name', 'price')) for baked_good in baked_goods_all]
+            return make_response(baked_goods_list_dicts, 200)
+    
+        elif request.method == 'POST':
+            new_baked_goods = BakedGood(name=request.form.get('name'), price=request.form.get('price'), created_at=request.form.get('created_at'), updated_at=request.form.get('updated_at'), bakery_id=request.form.get('bakery_id'))
+            db.session.add(new_baked_goods)
+            db.session.commit()
+
+            body = new_baked_goods.to_dict(only=('id', 'name', 'price', 'bakery_id'))
+
+            return make_response(body, 201)
+
+@app.route('/bakeries/<int:id>', methods=['GET', 'PATCH'])
 def bakery_by_id(id):
-
     bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
-    return make_response ( bakery_serialized, 200  )
+    if bakery:
+        if request.method == 'GET':
+            bakery_serialized = bakery.to_dict()
+            return make_response ( bakery_serialized, 200 )
+        elif request.method == 'PATCH':
+            for attr in request.form:
+                setattr(bakery, attr, request.form[attr])
+            db.session.commit()
+
+            body = bakery.to_dict(only=('id', 'name'))
+
+            return make_response(body, 200)
+        
+@app.route('/baked_goods/<int:id>', methods=['GET', 'PATCH', 'DELETE'])
+def baked_goods_by_id(id):
+    baked_good = BakedGood.query.filter_by(id=id).first()
+    if baked_good:
+        if request.method == 'GET':
+            baked_good_serialized = baked_good.to_dict()
+            return make_response ( baked_good_serialized, 200 )
+        elif request.method == 'PATCH':
+            for attr in request.form:
+                setattr(baked_good, attr, request.form[attr])
+            db.session.commit()
+
+            body = baked_good.to_dict(only=('id', 'name', 'price', 'bakery_id'))
+
+            return make_response(body, 200)
+        
+        elif request.method == 'DELETE':
+            db.session.delete(baked_good)
+            db.session.commit()
+            body = {"message": f"Baked good {id} has been deleted."}
+
+            return make_response(body, 200)
 
 @app.route('/baked_goods/by_price')
 def baked_goods_by_price():
